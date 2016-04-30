@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import struct, string, math
+from copy import *
 
 class SudokuBoard:
     """This will be the sudoku board game object your player will manipulate."""
@@ -117,7 +118,76 @@ def solve(initial_board, forward_checking = False, MRV = False, Degree = False,
     """Takes an initial SudokuBoard and solves it using back tracking, and zero
     or more of the heuristics and constraint propagation methods (determined by
     arguments). Returns the resulting board solution. """
+    
+    solved, __ = backtrack(initial_board, forward_checking, MRV, Degree, LCV)    
+    
+    if __ :
+        print "I failed :("
+    
     print "Your code will solve the initial_board here!"
     print "Remember to return the final board (the SudokuBoard object)."
     print "I'm simply returning initial_board for demonstration purposes."
-    return initial_board
+    return solved
+
+def findNum(board_obj, number):
+    """ finds all board positions that contain number """
+    
+    found = []
+    board = board_obj.CurrentGameBoard
+    for row_number, row in enumerate(board):
+        for col_number, col in enumerate(row):
+            if col == number:
+                found.append((row_number, col_number))
+   
+    return found
+    
+def isConsistent(board_obj, val, position):
+    """ determines if value is consistent with current board state """
+    board = board_obj.CurrentGameBoard
+    if val in board[position[0]]:
+        return False
+    elif val in (row[position[1]] for row in board):
+        return False
+    elif val in getSquare(board_obj, position, int(math.sqrt(board_obj.BoardSize))):
+        return False
+    else:
+        return True
+        
+def getSquare(board_obj, pos, squareSize):
+    """ return list of val in subsquare of position """
+    
+    board = board_obj.CurrentGameBoard
+    SquareRow = pos[0] // squareSize
+    SquareCol = pos[1] // squareSize
+    
+    rowIndices = [x + SquareRow * squareSize for x in range(0, squareSize)]
+    colIndices = [x + SquareCol * squareSize for x in range(0, squareSize)]
+    
+    squareVals = []
+    
+    for row in rowIndices:
+        for col in colIndices:
+            squareVals.append(board[row][col])
+    return squareVals
+            
+def backtrack(current_state, forward_checking, MRV, Degree, LCV):
+    """ HELP """
+    
+    nb = deepcopy(current_state)
+    
+    if is_complete(nb):
+        return nb, False
+    
+    unassigned = findNum(nb, 0)
+    result = nb
+    X, Y = unassigned[0]
+    D = range(1, nb.BoardSize+1)
+    for val in D:
+        if isConsistent(nb, val, (X, Y)):
+            nb.CurrentGameBoard[X][Y] = val
+            result, failure = backtrack(nb, forward_checking, MRV, Degree, LCV)
+            if not failure: 
+                return result, False
+    return result, True
+    
+    

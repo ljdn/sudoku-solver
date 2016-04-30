@@ -119,8 +119,14 @@ def solve(initial_board, forward_checking = False, MRV = False, Degree = False,
     or more of the heuristics and constraint propagation methods (determined by
     arguments). Returns the resulting board solution. """
     
-    solved, __ = backtrack(initial_board, forward_checking, MRV, Degree, LCV)    
+    empties = findNum(initial_board, 0)
+    domains = {(x, y): [] for x in range(initial_board.BoardSize) for y in range(initial_board.BoardSize)}
     
+    for x in empties:
+        domains[x] = range(1, initial_board.BoardSize+1) 
+    
+    solved, __, count = backtrack(initial_board, forward_checking, MRV, Degree, LCV, 0, domains)    
+    print "count:", count
     if __ :
         print "I failed :("
     
@@ -141,17 +147,17 @@ def findNum(board_obj, number):
    
     return found
     
-def isConsistent(board_obj, val, position):
+def isConsistent(board_obj, val, position, count):
     """ determines if value is consistent with current board state """
     board = board_obj.CurrentGameBoard
     if val in board[position[0]]:
-        return False
+        return False, count+1
     elif val in (row[position[1]] for row in board):
-        return False
+        return False, count+1
     elif val in getSquare(board_obj, position, int(math.sqrt(board_obj.BoardSize))):
-        return False
+        return False, count+1
     else:
-        return True
+        return True, count+1
         
 def getSquare(board_obj, pos, squareSize):
     """ return list of val in subsquare of position """
@@ -170,24 +176,49 @@ def getSquare(board_obj, pos, squareSize):
             squareVals.append(board[row][col])
     return squareVals
             
-def backtrack(current_state, forward_checking, MRV, Degree, LCV):
+def backtrack(current_state, forward_checking, MRV, Degree, LCV, count, domains):
     """ HELP """
     
     nb = deepcopy(current_state)
     
     if is_complete(nb):
-        return nb, False
+        return nb, False, count, domains
     
     unassigned = findNum(nb, 0)
     result = nb
     X, Y = unassigned[0]
     D = range(1, nb.BoardSize+1)
     for val in D:
-        if isConsistent(nb, val, (X, Y)):
+        consistent, count = isConsistent(nb, val, (X, Y), count)
+        if consistent:
             nb.CurrentGameBoard[X][Y] = val
-            result, failure = backtrack(nb, forward_checking, MRV, Degree, LCV)
+            result, failure, count, domains = backtrack(nb, forward_checking, MRV, Degree, LCV, count, domains)
             if not failure: 
-                return result, False
-    return result, True
+                return result, False, count, domains
+    return result, True, count, domains
+    
+def forwardCheck(board_obj, domains, val, pos):
+    """ do the forward checking """
+    
+    board = board_obj
+    squareSize = int(math.sqrt(board_obj.BoardSize))
+    
+    SquareRow = pos[0] // squareSize
+    SquareCol = pos[1] // squareSize
+    
+    rowIndices = [x + SquareRow * squareSize for x in range(squareSize)]
+    colIndices = [x + SquareCol * squareSize for x in range(squareSize)]
+    keys = [(x, y) for x in rowIndices for y in colIndices]
+    keys += [(pos[0], y) for y in range(board_obj.BoardSize)]
+    keys += [(x, pos[1]) for x in range(board_obj.BoardSize)]
+    keys = list(set(keys))
+    
+    # actually check domains
+    for key in keys:
+        if val in domains[key]:
+            domains[key].remove(val)
+            
+    print domains
+    
     
     

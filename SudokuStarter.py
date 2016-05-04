@@ -125,14 +125,19 @@ def solve(initial_board, forward_checking = False, MRV = False, Degree = False,
     for x in empties:
         domains[x] = range(1, initial_board.BoardSize+1) 
     
-    solved, __, count = backtrack(initial_board, forward_checking, MRV, Degree, LCV, 0, domains)    
+    if forward_checking:
+        for x in domains.keys():
+            if x not in empties:
+                domains, anyEmpty = forwardCheck(initial_board, domains, initial_board.CurrentGameBoard[x[0]][x[1]], x)
+    
+    solved, failed, count, domains = backtrack(initial_board, forward_checking, MRV, Degree, LCV, 0, domains)    
     print "count:", count
-    if __ :
+    if failed :
         print "I failed :("
     
-    print "Your code will solve the initial_board here!"
-    print "Remember to return the final board (the SudokuBoard object)."
-    print "I'm simply returning initial_board for demonstration purposes."
+    # print "Your code will solve the initial_board here!"
+    # print "Remember to return the final board (the SudokuBoard object)."
+    # print "I'm simply returning initial_board for demonstration purposes."
     return solved
 
 def findNum(board_obj, number):
@@ -177,30 +182,45 @@ def getSquare(board_obj, pos, squareSize):
     return squareVals
             
 def backtrack(current_state, forward_checking, MRV, Degree, LCV, count, domains):
-    """ HELP """
+    """ Implement backtracking algorith """
     
     nb = deepcopy(current_state)
+    domain_copy = deepcopy(domains)
     
     if is_complete(nb):
-        return nb, False, count, domains
+        return nb, False, count, domain_copy
     
     unassigned = findNum(nb, 0)
     result = nb
-    X, Y = unassigned[0]
-    D = range(1, nb.BoardSize+1)
+    
+    if MRV:
+        X, Y = MRVHeuristic(domain_copy, unassigned)
+    else:     
+        X, Y = unassigned[0]
+        
+    D = domain_copy[(X,Y)]
     for val in D:
         consistent, count = isConsistent(nb, val, (X, Y), count)
         if consistent:
-            nb.CurrentGameBoard[X][Y] = val
-            result, failure, count, domains = backtrack(nb, forward_checking, MRV, Degree, LCV, count, domains)
-            if not failure: 
-                return result, False, count, domains
-    return result, True, count, domains
+            
+            anyEmpty = False
+            
+            if forward_checking:
+                domain_copy, anyEmpty = forwardCheck(nb, domain_copy, val, (X,Y))
+                
+            if not anyEmpty:
+                nb.CurrentGameBoard[X][Y] = val
+                    
+                result, failure, count, domain_copy = backtrack(nb, forward_checking, MRV, Degree, LCV, count, domain_copy)
+                if not failure: 
+                    return result, False, count, domain_copy
+                
+    return nb, True, count, domains
     
-def forwardCheck(board_obj, domains, val, pos):
+def forwardCheck(board_obj, original_domain, val, pos):
     """ do the forward checking """
     
-    board = board_obj
+    domains = deepcopy(original_domain)
     squareSize = int(math.sqrt(board_obj.BoardSize))
     
     SquareRow = pos[0] // squareSize
@@ -212,13 +232,24 @@ def forwardCheck(board_obj, domains, val, pos):
     keys += [(pos[0], y) for y in range(board_obj.BoardSize)]
     keys += [(x, pos[1]) for x in range(board_obj.BoardSize)]
     keys = list(set(keys))
+    keys.remove(pos)
     
-    # actually check domains
+    # actually check domains; exit if forward checking leaves one var with an empty domain
     for key in keys:
         if val in domains[key]:
             domains[key].remove(val)
+            if len(domains[key]) == 0:
+                return original_domain, True
             
-    print domains
+    return domains, False
     
+def MRVHeuristic(domains, unassigned):    
+    """ chooses unassigned variable with fewest values remaining it its domain """
     
+    otherDomains = {k: domains[k] for k in unassigned}
+    #print unassigned
+    #print otherDomains
+    smallest = min(otherDomains, key=lambda k: len(otherDomains[k]))
+    #print smallest
     
+    return smallest[0], smallest[1]

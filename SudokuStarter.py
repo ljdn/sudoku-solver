@@ -125,6 +125,7 @@ def solve(initial_board, forward_checking = False, MRV = False, Degree = False,
     for x in empties:
         domains[x] = range(1, initial_board.BoardSize+1) 
     
+    # run forward checking on initial board
     if forward_checking:
         for x in domains.keys():
             if x not in empties:
@@ -132,8 +133,6 @@ def solve(initial_board, forward_checking = False, MRV = False, Degree = False,
     
     solved, failed, count, domains = backtrack(initial_board, forward_checking, MRV, Degree, LCV, 0, domains)    
     print "count:", count
-    if failed :
-        print "I failed :("
     
     # print "Your code will solve the initial_board here!"
     # print "Remember to return the final board (the SudokuBoard object)."
@@ -195,11 +194,14 @@ def backtrack(current_state, forward_checking, MRV, Degree, LCV, count, domains)
     
     if MRV:
         X, Y = MRVHeuristic(domain_copy, unassigned)
+        #print "Using MRV!"
     else:     
         X, Y = unassigned[0]
+        #print "No MRV :P"
         
     D = domain_copy[(X,Y)]
     for val in D:
+        #print X, Y, D, val
         consistent, count = isConsistent(nb, val, (X, Y), count)
         if consistent:
             
@@ -207,19 +209,25 @@ def backtrack(current_state, forward_checking, MRV, Degree, LCV, count, domains)
             
             if forward_checking:
                 domain_copy, anyEmpty = forwardCheck(nb, domain_copy, val, (X,Y))
-                
+                #print "Forward check!"
+   
+
             if not anyEmpty:
                 nb.CurrentGameBoard[X][Y] = val
                     
-                result, failure, count, domain_copy = backtrack(nb, forward_checking, MRV, Degree, LCV, count, domain_copy)
+                result, failure, count, domain_copy = backtrack(result, forward_checking, MRV, Degree, LCV, count, domain_copy)
                 if not failure: 
-                    return result, False, count, domain_copy
+                    return result, False, count, domain_copy      
                 
+            # else:
+            #     print "reset domains"
+            #     new_domain = domain_copy 
+    
+    print "domain empty: ", X, Y
     return nb, True, count, domains
     
 def forwardCheck(board_obj, original_domain, val, pos):
     """ do the forward checking """
-    
     domains = deepcopy(original_domain)
     squareSize = int(math.sqrt(board_obj.BoardSize))
     
@@ -234,14 +242,19 @@ def forwardCheck(board_obj, original_domain, val, pos):
     keys = list(set(keys))
     keys.remove(pos)
     
+    howMany = 0
     # actually check domains; exit if forward checking leaves one var with an empty domain
     for key in keys:
         if val in domains[key]:
             domains[key].remove(val)
+            howMany += 1
             if len(domains[key]) == 0:
-                return original_domain, True
-            
-    return domains, False
+                #print "forward check failed", key
+                #print original_domain[(0,3)]
+                return original_domain, True, howMany
+    
+    #print original_domain[(0,3)]        
+    return domains, False, howMany
     
 def MRVHeuristic(domains, unassigned):    
     """ chooses unassigned variable with fewest values remaining it its domain """
@@ -253,3 +266,43 @@ def MRVHeuristic(domains, unassigned):
     #print smallest
     
     return smallest[0], smallest[1]
+
+def LCVHeuristic(board_obj, domains, varDomain):
+    """ minimize forward check removals """
+
+    currentMin = -1
+    for val in varDomain:
+        __, ___, howMany = forwardCheck(board_obj, domains, val, varDomain[val])
+        if currentMin == -1 or howMany < currentMin:
+            currentMin = howMany
+            currentBest = val
+
+    return currentBest
+
+def DegreeHeuristic(board_obj, domains, unassigned):
+    """ sum of unassigned var in row, col, subsquare """
+    
+    maxConstraints = 0
+    for pos in unassigned:
+        squareSize = int(math.sqrt(board_obj.BoardSize))
+        
+        SquareRow = pos[0] // squareSize
+        SquareCol = pos[1] // squareSize
+        
+        rowIndices = [x + SquareRow * squareSize for x in range(squareSize)]
+        colIndices = [x + SquareCol * squareSize for x in range(squareSize)]
+        keys = [(x, y) for x in rowIndices for y in colIndices]
+        keys += [(pos[0], y) for y in range(board_obj.BoardSize)]
+        keys += [(x, pos[1]) for x in range(board_obj.BoardSize)]
+        keys = list(set(keys))
+        keys.remove(pos)
+
+        count = 0
+        for key in keys:
+            if key in unassigned:
+                count += 1
+        if count > maxConstraints:
+            maxConstraints = count
+            currentBest = pos
+
+    return currentBest

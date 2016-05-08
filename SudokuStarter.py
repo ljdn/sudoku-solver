@@ -220,8 +220,10 @@ def backtrack(current_state, forward_checking, MRV, Degree, LCV, count, domains)
 
     D = domain_copy[(X,Y)]
     for val in D:
-        #print X, Y, D, val
+    
+        domain_copy = deepcopy(domains)
         consistent, count = isConsistent(nb, val, (X, Y), count)
+        # !!! IF forward checking, val is already consistent !!!
 
         #if consistent, assign value and continue dfs
         if consistent:
@@ -237,6 +239,9 @@ def backtrack(current_state, forward_checking, MRV, Degree, LCV, count, domains)
                 next_board, failure, count, new_domain = backtrack(nb, forward_checking, MRV, Degree, LCV, count, domain_copy)
                 if not failure:
                     return next_board, False, count, new_domain
+            else:
+                domain_copy = deepcopy(domains)
+
     print "failed at ", val, "in ", (X,Y)
     return nb, True, count, domains
 

@@ -165,19 +165,19 @@ def findNum(board_obj, number):
 
     return found
 
-def isConsistent(board_obj, val, position, count):
+def isConsistent(board_obj, val, position):
     """ determines if value is consistent with current board state """
 
     board = board_obj.CurrentGameBoard
     #print board
     if val in board[position[0]]:
-        return False, count+1
+        return False
     if val in (row[position[1]] for row in board):
-        return False, count+1
+        return False
     elif val in getSquare(board_obj, position, int(math.sqrt(board_obj.BoardSize))):
-        return False, count+1
+        return False
     else:
-        return True, count+1
+        return True
 
 def getSquare(board_obj, pos, squareSize):
     """ return list of val in subsquare of position """
@@ -222,32 +222,30 @@ def backtrack(current_state, forward_checking, MRV, Degree, LCV, count, domains)
     for val in D:
     
         domain_copy = deepcopy(domains)
-        consistent, count = isConsistent(nb, val, (X, Y), count)
-        # !!! IF forward checking, val is already consistent !!!
 
-        #if consistent, assign value and continue dfs
+        if forward_checking:
+            # print "forward check", (X,Y), val, domain_copy[(0,5)]
+            domain_copy, consistent, howMany = forwardCheck(nb, domain_copy, val, (X,Y))
+            # print "after fc ", domain_copy[(0,5)]
+        else:
+            consistent = isConsistent(nb, val, (X,Y))
+
         if consistent:
-            anyEmpty = False
-            if forward_checking:
-                print "forward check", (X,Y), val, domain_copy[(0,5)]
-                domain_copy, anyEmpty, howMany = forwardCheck(nb, domain_copy, val, (X,Y))
-                print "after fc ", domain_copy[(0,5)]
-                #print "Forward check!"
-            if not anyEmpty:
-                nb.CurrentGameBoard[X][Y] = val
-                domain_copy[(X,Y)] = [val]
-                next_board, failure, count, new_domain = backtrack(nb, forward_checking, MRV, Degree, LCV, count, domain_copy)
-                if not failure:
-                    return next_board, False, count, new_domain
-            else:
-                domain_copy = deepcopy(domains)
+            nb.CurrentGameBoard[X][Y] = val
+            count += 1
+            domain_copy[(X,Y)] = [val]
+            next_board, failure, count, new_domain = backtrack(nb, forward_checking, MRV, Degree, LCV, count, domain_copy)
+            if not failure:
+                return next_board, False, count, new_domain
+        else:
+            domain_copy = deepcopy(domains)
 
-    print "failed at ", val, "in ", (X,Y)
+    #print "failed at ", val, "in ", (X,Y)
     return nb, True, count, domains
 
 def forwardCheck(board_obj, original_domain, val, pos):
     """ do the forward checking """
-    print "checking ", pos
+    #print "checking ", pos
     domains = deepcopy(original_domain)
     squareSize = int(math.sqrt(board_obj.BoardSize))
     SquareRow = pos[0] // squareSize
@@ -259,22 +257,18 @@ def forwardCheck(board_obj, original_domain, val, pos):
     keys += [(x, pos[1]) for x in range(board_obj.BoardSize)]
     keys = list(set(keys))
     keys.remove(pos)
-    print keys
+    #print keys
     howMany = 0
     # actually check domains; exit if forward checking leaves one var with an empty domain
     for key in keys:
         if val in domains[key]:
             domains[key].remove(val)
-            print "removing ", val, "from ", key
             howMany += 1
             if len(domains[key]) == 0:
-                #print "forward check failed", key
-                #print original_domain[(0,3)]
-                print "domain empty: ", key
-                return original_domain, True, howMany
+                return original_domain, False, howMany
 
     #print original_domain[(0,3)]
-    return domains, False, howMany
+    return domains, True, howMany
 
 def MRVHeuristic(domains, unassigned):
     """ chooses unassigned variable with fewest values remaining in its domain """

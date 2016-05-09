@@ -205,20 +205,26 @@ def backtrack(current_state, forward_checking, MRV, Degree, LCV, count, domains)
     if is_complete(nb):
         return nb, False, count, domain_copy
 
-    #if time.clock() - start_time > 600:
-    #    print "Out of time"
-    #    return nb, True, count, domain_copy
+    if time.clock() - start_time > 600:
+        print "Out of time"
+        return nb, True, count, domain_copy
 
     unassigned = findNum(nb, 0)
 
     if MRV:
         X, Y = MRVHeuristic(domain_copy, unassigned)
         #print "Using MRV!"
+    elif Degree:
+        X, Y = DegreeHeuristic(nb, domain_copy, unassigned)
     else:
         X, Y = unassigned[0]
         #print "No MRV :P"
 
     D = domain_copy[(X,Y)]
+
+    if LCV:
+        D = LCVHeuristic(nb, domain_copy, D, (X,Y))
+
     for val in D:
     
         domain_copy = deepcopy(domains)
@@ -281,22 +287,27 @@ def MRVHeuristic(domains, unassigned):
 
     return smallest[0], smallest[1]
 
-def LCVHeuristic(board_obj, domains, varDomain):
-    """ minimize forward check removals """
+def LCVHeuristic(board_obj, domains, varDomain, pos):
+    """ return domain sorted with val that minimizes forward check removals first """
 
     currentMin = -1
-    for val in varDomain:
-        __, ___, howMany = forwardCheck(board_obj, domains, val, varDomain[val])
-        if currentMin == -1 or howMany < currentMin:
-            currentMin = howMany
-            currentBest = val
+    return sorted(varDomain, key=lambda x: forwardCheck(board_obj, domains, x, pos)[2])
 
-    return currentBest
+
+
+    # for val in varDomain:
+    #     __, ___, howMany = forwardCheck(board_obj, domains, val, varDomain[val])
+    #     if currentMin == -1 or howMany < currentMin:
+    #         currentMin = howMany
+    #         currentBest = val
+
+    # return currentBest
 
 def DegreeHeuristic(board_obj, domains, unassigned):
     """ sum of unassigned var in row, col, subsquare """
 
     maxConstraints = 0
+    currentBest = unassigned[0]
     for pos in unassigned:
         squareSize = int(math.sqrt(board_obj.BoardSize))
 
@@ -319,7 +330,7 @@ def DegreeHeuristic(board_obj, domains, unassigned):
             maxConstraints = count
             currentBest = pos
 
-    return currentBest
+    return currentBest[0], currentBest[1]
 
 four = init_board("input_puzzles/easy/4_4.sudoku")
 nine = init_board("input_puzzles/easy/9_9.sudoku")

@@ -226,7 +226,7 @@ def backtrack(current_state, forward_checking, MRV, Degree, LCV, count, domains)
         D = LCVHeuristic(nb, domain_copy, D, (X,Y))
 
     for val in D:
-    
+
         domain_copy = deepcopy(domains)
 
         if forward_checking:
@@ -292,16 +292,6 @@ def LCVHeuristic(board_obj, domains, varDomain, pos):
 
     currentMin = -1
     return sorted(varDomain, key=lambda x: forwardCheck(board_obj, domains, x, pos)[2])
-
-
-
-    # for val in varDomain:
-    #     __, ___, howMany = forwardCheck(board_obj, domains, val, varDomain[val])
-    #     if currentMin == -1 or howMany < currentMin:
-    #         currentMin = howMany
-    #         currentBest = val
-
-    # return currentBest
 
 def DegreeHeuristic(board_obj, domains, unassigned):
     """ sum of unassigned var in row, col, subsquare """
